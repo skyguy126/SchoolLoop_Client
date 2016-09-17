@@ -24,7 +24,7 @@ public static void main(String[] args) {
     client.parse();
 
     //Get the parsed portal data
-    ArrayList<HashMap<String, Object>> portalData = getPortalData();
+    ArrayList<HashMap<String, Object>> portalData = client.getPortalData();
 
     //Invalidate the current session
     client.logout();
