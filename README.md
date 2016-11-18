@@ -20,6 +20,9 @@ public static void main(String[] args) {
     client.setCookie(session);
     boolean isSessionValid = client.isCookieValid();
 
+    // Load the portal
+    boolean loadSuccess = client.loadPortal();
+
     // Parse the academic data from the portal
     client.parseAcademics();
 
@@ -38,6 +41,7 @@ View `SClientTester.java` for a more complete example.
 
 **Current Feature Set (WIP)**
 
+##### Academics
 - Period
 - Course Name
 - Teacher
@@ -45,17 +49,13 @@ View `SClientTester.java` for a more complete example.
 - Grade Letter
 - Grade Percent
 - Number of Zeros
-- Is Ap
 - Progress Report
-    - Assignment Name
-    - Due Date
-    - Score
-    - Category
 - Weight Scale
-    - Is Weighted
-    - Weight Name
-    - Category Score
 
+##### Calendar
+- Day
+- Date
+- Assignments
 --------
 
 #### Dependencies

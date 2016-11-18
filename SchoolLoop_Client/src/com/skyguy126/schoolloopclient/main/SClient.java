@@ -15,6 +15,7 @@ import org.jsoup.select.Elements;
 
 import com.skyguy126.schoolloopclient.models.Assignment;
 import com.skyguy126.schoolloopclient.models.Attachment;
+import com.skyguy126.schoolloopclient.models.CalendarRow;
 import com.skyguy126.schoolloopclient.models.GradeWeight;
 import com.skyguy126.schoolloopclient.models.ProgressReportRow;
 import com.skyguy126.schoolloopclient.models.Section;
@@ -32,6 +33,8 @@ public class SClient {
 	private static final String ASSIGNMENT_URL = "/pf4/block_document/viewDocument";
 
 	private ArrayList<Section> academicData;
+	private ArrayList<CalendarRow> calendarData;
+
 	private String studentName;
 	private String schoolUrl;
 	private String portalBody;
@@ -43,6 +46,10 @@ public class SClient {
 
 	public ArrayList<Section> getAcademicData() {
 		return this.academicData;
+	}
+
+	public ArrayList<CalendarRow> getCalendarData() {
+		return this.calendarData;
 	}
 
 	public String getCookie() {
@@ -217,8 +224,71 @@ public class SClient {
 				assignmentPoints, assignmentDescription, attachments);
 	}
 
+	public boolean loadPortal() throws Exception {
+		OkHttpClient client = new OkHttpClient();
+
+		Request portalRequest = new Request.Builder().get().url(this.schoolUrl + "/portal/student_home")
+				.header("Cookie", this.cookie).header("User-Agent", USER_AGENT).header("Content-Type", CONTENT_TYPE)
+				.build();
+
+		Response portalResponse = client.newCall(portalRequest).execute();
+
+		if (portalResponse.code() != 200) {
+			portalResponse.body().close();
+			return false;
+		}
+
+		this.portalBody = portalResponse.body().string();
+		
+		Document portalSoup = Jsoup.parse(this.portalBody);
+		Elements pageTitle = portalSoup.getElementsByClass("page_title");
+		
+		this.studentName = pageTitle.text().substring(0, pageTitle.text().indexOf("Portal")).trim();
+		
+		return true;
+	}
+
+	public void parseCalendar() throws Exception {
+
+		ArrayList<CalendarRow> calendar = new ArrayList<CalendarRow>();
+		
+		String day = "";
+		String date = "";
+
+		Elements calendarItems = Jsoup.parse(this.portalBody).select("div.cal_content_holder").first().children();
+
+		for (int i = 1; i < calendarItems.size(); i++) {
+
+			ArrayList<Assignment> assignments = new ArrayList<Assignment>();
+
+			Element holder = calendarItems.get(i);
+
+			Element mDayEmpty = holder.select("div.cal_label_day.float_l").first();
+			if (mDayEmpty != null) {
+				calendar.add(new CalendarRow(mDayEmpty.text(),
+						holder.select("div.cal_label_date.float_r").first().text(), true, assignments));
+				continue;
+			}
+			
+			day = holder.select("div.cal_label_day_has.float_l").first().text();
+			date = holder.select("div.cal_label_date_has.float_r").first().text();
+			
+			Elements assignmentSoup = holder.select("div.ajax_accordion.due_page");
+			
+			for (Element a : assignmentSoup) {
+				String aUrl = this.schoolUrl + a.getElementsByTag("a").first().attr("href");
+				assignments.add(parseAssignment(aUrl));
+			}
+			
+			calendar.add(new CalendarRow(day, date, false, assignments));
+		}
+		
+		this.calendarData = calendar;
+	}
+
 	public void parseAcademics() throws Exception {
 
+		OkHttpClient client = new OkHttpClient();
 		ArrayList<Section> classes = new ArrayList<Section>();
 
 		String period = "";
@@ -233,35 +303,17 @@ public class SClient {
 		boolean isPublished = false;
 		boolean isAp = false;
 		boolean isWeighted = false;
-		
+
 		ArrayList<ProgressReportRow> progressReport;
 		ArrayList<GradeWeight> gradeWeights;
-
-		OkHttpClient client = new OkHttpClient();
-
-		Request portalRequest = new Request.Builder().get().url(this.schoolUrl + "/portal/student_home")
-				.header("Cookie", this.cookie).header("User-Agent", USER_AGENT).header("Content-Type", CONTENT_TYPE)
-				.build();
-
-		Response portalResponse = client.newCall(portalRequest).execute();
-
-		if (portalResponse.code() != 200) {
-			portalResponse.body().close();
-			return;
-		}
-
-		this.portalBody = portalResponse.body().string();
-
+		
 		Document portalSoup = Jsoup.parse(this.portalBody);
-
-		Elements pageTitle = portalSoup.getElementsByClass("page_title");
-		this.studentName = pageTitle.text().substring(0, pageTitle.text().indexOf("Portal")).trim();
 
 		Elements academics = portalSoup.select("div.portal_tab_cont.academics_cont");
 		Elements classRows = academics.first().getElementsByClass("student_row");
 
 		for (int i = 0; i < classRows.size(); i++) {
-			
+
 			progressReport = new ArrayList<ProgressReportRow>();
 			gradeWeights = new ArrayList<GradeWeight>();
 
