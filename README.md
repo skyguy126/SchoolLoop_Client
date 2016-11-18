@@ -56,6 +56,7 @@ View `SClientTester.java` for a more complete example.
 - Day
 - Date
 - Assignments
+
 --------
 
 #### Dependencies
